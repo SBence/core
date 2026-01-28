@@ -656,7 +656,7 @@ export async function APIUpdate(plugin: PluginDetect, arg1: string | any, arg2: 
   const DB = await GET_DB(plugin.identifier);
   if (!DB) throw new Error(`database failed to load`);
 
-  const docs = await DB.updateAsync<any>(query, update, {
+  const docs = await DB.updateAsync<any, nedb.UpdateOptions>(query, update, {
     upsert: false,
     multi: true,
     returnUpdatedDocs: true,
@@ -714,7 +714,7 @@ export async function APIUpsert(plugin: PluginDetect, arg1: string | any, arg2: 
   const DB = await GET_DB(plugin.identifier);
   if (!DB) throw new Error(`database failed to load`);
 
-  const docs = await DB.updateAsync<any>(query, update, {
+  const docs = await DB.updateAsync<any, nedb.UpdateOptions>(query, update, {
     upsert: true,
     multi: true,
     returnUpdatedDocs: true,
