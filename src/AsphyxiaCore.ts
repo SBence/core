@@ -27,6 +27,49 @@ function cleanIP(ip: string) {
   return ip;
 }
 
+function listenCallback(port: number, bind: string, openWebUI: boolean, serverName?: string) {
+  const cleaned = cleanIP(bind);
+  const isV6 = isIPv6(cleaned);
+  const printAddr = isV6 ? `[${cleaned}]` : cleaned;
+  const removeNIC = cleaned.split('%')[0];
+  const openAddr =
+    cleaned == '0.0.0.0' || cleaned == '::' || cleaned == '0:0:0:0:0:0:0:0'
+      ? 'localhost'
+      : isV6
+      ? `[${removeNIC}]`
+      : removeNIC;
+
+  Logger.info(``);
+  const serverInfo = `${printAddr} at ${port}`;
+  const httpInfo = `http://${openAddr}:${port}`;
+  Logger.info(`   +${pad(` ${serverName ?? "Server"} Started `, 46, '=')}+`);
+  Logger.info(`   | - Listening - - - - - - - - - - - - - - - - -|`);
+  Logger.info(`   |${pad(serverInfo, 46)}|`);
+  Logger.info(`   | - URL - - - - - - - - - - - - - - - - - - - -|`);
+  Logger.info(`   |${pad(httpInfo, 46)}|`);
+  Logger.info(`   +==============================================+`);
+  Logger.info('');
+
+  if (openWebUI) {
+    try {
+      open(`http://${openAddr}:${port}`);
+    } catch {}
+  }
+}
+
+function errorHandler(err: any) {
+  if (err && err.code == 'EADDRINUSE') {
+    Logger.info('Server failed to start: port might be in use.');
+    Logger.info('Use -p argument to change port.');
+  }
+  Logger.info(' ');
+  Logger.error(`     ${err.message}`);
+  Logger.info(' ');
+  Logger.info('Press any key to exit.');
+  process.stdin.resume();
+  process.stdin.on('data', process.exit.bind(process, 0));
+}
+
 function Main() {
   process.title = `Asphyxia CORE ${VERSION}`;
 
@@ -48,9 +91,13 @@ function Main() {
   Logger.info(` `);
 
   const EAMUSE = express();
+  const WEBUI = express();
 
   EAMUSE.disable('etag');
   EAMUSE.disable('x-powered-by');
+
+  WEBUI.disable('etag');
+  WEBUI.disable('x-powered-by');
 
   if (ARGS.dev) {
     Logger.info(` [Developer Mode] Console Output Enabled`);
@@ -68,55 +115,24 @@ function Main() {
   }
 
   // ========== EAMUSE ============
-  EAMUSE.set('views', path.join(ASSETS_PATH, 'views'));
-  EAMUSE.set('view engine', 'pug');
-  EAMUSE.use('*', services(CONFIG.port, external));
-  EAMUSE.use('/static', express.static(path.join(ASSETS_PATH, 'static')));
-  EAMUSE.use(webui);
+  WEBUI.set('views', path.join(ASSETS_PATH, 'views'));
+  WEBUI.set('view engine', 'pug');
+  EAMUSE.use('*', services(CONFIG.eamuse_port, external));
+  WEBUI.use('/static', express.static(path.join(ASSETS_PATH, 'static')));
+  WEBUI.use(webui);
 
   // ========== LISTEN ============
-  const server = EAMUSE.listen(CONFIG.port, CONFIG.bind, () => {
-    const cleaned = cleanIP(CONFIG.bind);
-    const isV6 = isIPv6(cleaned);
-    const printAddr = isV6 ? `[${cleaned}]` : cleaned;
-    const removeNIC = cleaned.split('%')[0];
-    const openAddr =
-      cleaned == '0.0.0.0' || cleaned == '::' || cleaned == '0:0:0:0:0:0:0:0'
-        ? 'localhost'
-        : isV6
-        ? `[${removeNIC}]`
-        : removeNIC;
-
-    Logger.info(``);
-    const serverInfo = `${printAddr} at ${CONFIG.port}`;
-    const httpInfo = `http://${openAddr}:${CONFIG.port}`;
-    Logger.info(`   +=============== Server Started ===============+`);
-    Logger.info(`   | - Listening - - - - - - - - - - - - - - - - -|`);
-    Logger.info(`   |${pad(serverInfo, 46)}|`);
-    Logger.info(`   | - WebUI - - - - - - - - - - - - - - - - - - -|`);
-    Logger.info(`   |${pad(httpInfo, 46)}|`);
-    Logger.info(`   +==============================================+`);
-    Logger.info('');
-
-    if (CONFIG.webui_on_startup) {
-      try {
-        open(`http://${openAddr}:${CONFIG.port}`);
-      } catch {}
-    }
+  const eAmuseServer = EAMUSE.listen(CONFIG.eamuse_port, CONFIG.eamuse_bind, () => {
+    listenCallback(CONFIG.eamuse_port, CONFIG.eamuse_bind, false, 'eAmuse');
   });
 
-  server.on('error', (err: any) => {
-    if (err && err.code == 'EADDRINUSE') {
-      Logger.info('Server failed to start: port might be in use.');
-      Logger.info('Use -p argument to change port.');
-    }
-    Logger.info(' ');
-    Logger.error(`     ${err.message}`);
-    Logger.info(' ');
-    Logger.info('Press any key to exit.');
-    process.stdin.resume();
-    process.stdin.on('data', process.exit.bind(process, 0));
+  eAmuseServer.on('error', errorHandler);
+
+  const webUIServer = WEBUI.listen(CONFIG.webui_port, CONFIG.webui_bind, () => {
+    listenCallback(CONFIG.webui_port, CONFIG.webui_bind, CONFIG.webui_on_startup, 'WebUI');
   });
+
+  webUIServer.on('error', errorHandler);
 }
 
 Migrate().then(() => {

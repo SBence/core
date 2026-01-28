@@ -16,17 +16,30 @@ const parser = new ArgumentParser({
   prog: 'asphyxia_core',
 });
 
-parser.addArgument(['-p', '--port'], {
-  help: 'Set listening port. (default: 8083)',
+parser.addArgument(['-wp', '--webui-port'], {
+  help: 'Set WebUI listening port. (default: 8083)',
   type: 'int',
   metavar: 'PORT',
-  dest: 'port',
+  dest: 'webui_port',
 });
 
-parser.addArgument(['-b', '--bind'], {
-  help: 'Hostname binding. In case you need to access it through LAN. (default: "localhost")',
+parser.addArgument(['-wb', '--webui-bind'], {
+  help: 'WebUI hostname binding. In case you need to access it through LAN. (default: "localhost")',
   metavar: 'HOST',
   dest: 'bind',
+});
+
+parser.addArgument(['-ep', '--eamuse-port'], {
+  help: 'Set eAmuse listening port. (default: 1337)',
+  type: 'int',
+  metavar: 'PORT',
+  dest: 'eamuse_port',
+});
+
+parser.addArgument(['-eb', '--eamuse-bind'], {
+  help: 'eAmuse hostname binding. In case you need to access it through LAN. (default: "localhost")',
+  metavar: 'HOST',
+  dest: 'eamuse_bind',
 });
 
 parser.addArgument(['-m', '--matching-port'], {
@@ -86,14 +99,27 @@ export const CONFIG_MAP: {
 };
 
 function CoreConfig() {
-  CONFIG_MAP['core'].set('port', {
+  CONFIG_MAP['core'].set('webui_port', {
     type: 'integer',
     range: [0, 65535],
     default: 8083,
     needRestart: true,
   });
 
-  CONFIG_MAP['core'].set('bind', {
+  CONFIG_MAP['core'].set('webui_bind', {
+    type: 'string',
+    default: 'localhost',
+    needRestart: true,
+  });
+
+  CONFIG_MAP['core'].set('eamuse_port', {
+    type: 'integer',
+    range: [0, 65535],
+    default: 1337,
+    needRestart: true,
+  });
+
+  CONFIG_MAP['core'].set('eamuse_bind', {
     type: 'string',
     default: 'localhost',
     needRestart: true,
